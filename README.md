@@ -32,10 +32,10 @@ Unlike traditional single-grid spreadsheets, Tabulo treats tables as first-class
 
 Tabulo is organized into modular .NET 10 libraries:
 
-- **`SpreadsheetApp`**: WPF Presentation layer (MVVM, Ribbon tabs, Infinite Canvas rendering, Vector SVGs, Navigation drawer).
-- **`SpreadsheetApp.Core`**: Domain models, Calculation Engine, AST lexer & parser, DAG dependency graph, Function Catalog, and Document Storage.
-- **`SpreadsheetApp.Scripting`**: Roslyn-powered C# scripting execution host.
-- **`SpreadsheetApp.Tests`**: Comprehensive unit & integration test suite.
+- **`Tabulo`**: WPF Presentation layer (MVVM, Ribbon tabs, Infinite Canvas rendering, Vector SVGs, Navigation drawer).
+- **`Tabulo.Core`**: Domain models, Calculation Engine, AST lexer & parser, DAG dependency graph, Function Catalog, and Document Storage.
+- **`Tabulo.Scripting`**: Roslyn-powered C# scripting execution host.
+- **`Tabulo.Tests`**: Comprehensive unit & integration test suite.
 
 ---
 
@@ -58,7 +58,7 @@ dotnet build
 dotnet test
 
 # Launch Tabulo
-dotnet run --project SpreadsheetApp/SpreadsheetApp.csproj
+dotnet run --project Tabulo/Tabulo.csproj
 ```
 
 ---

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Tabulo.Core/Tabulo.Core.csproj" />
+  <Project Path="Tabulo.Scripting/Tabulo.Scripting.csproj" />
+  <Project Path="Tabulo.Tests/Tabulo.Tests.csproj" />
+  <Project Path="Tabulo/Tabulo.csproj" />
+</Solution>
