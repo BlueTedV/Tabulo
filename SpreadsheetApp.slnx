@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SpreadsheetApp.Core/SpreadsheetApp.Core.csproj" />
+  <Project Path="SpreadsheetApp.Scripting/SpreadsheetApp.Scripting.csproj" />
+  <Project Path="SpreadsheetApp.Tests/SpreadsheetApp.Tests.csproj" />
+  <Project Path="SpreadsheetApp/SpreadsheetApp.csproj" />
+</Solution>
