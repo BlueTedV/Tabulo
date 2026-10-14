@@ -1,7 +1,8 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Tabulo.Core.Engine;
 using Tabulo.Core.Models;
 
@@ -320,6 +321,171 @@ public partial class MainWindow : Window
             ViewModel.FocusTable(table);
             CanvasView.StartTableTitleEditor(table);
             e.Handled = true;
+        }
+    }
+
+    private void FontFamilyComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox cb && cb.SelectedItem is string fontName && !string.IsNullOrWhiteSpace(fontName))
+        {
+            if (ViewModel.ActiveFontFamily != fontName)
+            {
+                ViewModel.SetFontFamily(fontName);
+            }
+        }
+    }
+
+    private void FontSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox cb && cb.SelectedItem != null)
+        {
+            if (double.TryParse(cb.SelectedItem.ToString(), out var size) && Math.Abs(ViewModel.ActiveFontSize - size) > 0.05)
+            {
+                ViewModel.SetFontSize(size);
+            }
+            cb.IsDropDownOpen = false;
+        }
+    }
+
+    private void FontSizeComboBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is ComboBox cb)
+        {
+            var dep = e.OriginalSource as DependencyObject;
+            while (dep != null && dep != cb)
+            {
+                if (dep is Button) return;
+                dep = VisualTreeHelper.GetParent(dep);
+            }
+
+            if (!cb.IsDropDownOpen)
+            {
+                cb.IsDropDownOpen = true;
+            }
+        }
+    }
+
+    private void FontSizeComboBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is ComboBox cb)
+        {
+            var dep = e.OriginalSource as DependencyObject;
+            while (dep != null && dep != cb)
+            {
+                if (dep is Button) return;
+                dep = VisualTreeHelper.GetParent(dep);
+            }
+
+            cb.IsDropDownOpen = true;
+        }
+    }
+
+    private void FontSizeComboBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            if (sender is ComboBox cb)
+            {
+                ApplyCustomFontSize(cb);
+                cb.IsDropDownOpen = false;
+            }
+            CanvasView.Focus();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            if (sender is ComboBox cb)
+            {
+                cb.Text = ViewModel.ActiveFontSizeText;
+                cb.IsDropDownOpen = false;
+            }
+            CanvasView.Focus();
+            e.Handled = true;
+        }
+    }
+
+    private void FontSizeComboBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox cb)
+        {
+            ApplyCustomFontSize(cb);
+            cb.IsDropDownOpen = false;
+        }
+    }
+
+    private void MainWindow_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FontSizeComboBox != null && FontSizeComboBox.IsDropDownOpen)
+        {
+            var dep = e.OriginalSource as DependencyObject;
+            bool isInside = false;
+            while (dep != null)
+            {
+                if (dep == FontSizeComboBox)
+                {
+                    isInside = true;
+                    break;
+                }
+                if (dep is FrameworkElement fe && (fe.Name == "dropDownBorder" || fe.Name == "PART_Popup"))
+                {
+                    isInside = true;
+                    break;
+                }
+                if (dep is ComboBoxItem)
+                {
+                    isInside = true;
+                    break;
+                }
+                dep = VisualTreeHelper.GetParent(dep) ?? LogicalTreeHelper.GetParent(dep);
+            }
+
+            if (!isInside)
+            {
+                FontSizeComboBox.IsDropDownOpen = false;
+            }
+        }
+    }
+
+    private void ApplyCustomFontSize(ComboBox? cb)
+    {
+        if (cb == null) return;
+        var text = cb.Text?.Trim();
+        if (double.TryParse(text, out var size) && size >= 4 && size <= 144)
+        {
+            if (Math.Abs(ViewModel.ActiveFontSize - size) > 0.05)
+            {
+                ViewModel.SetFontSize(Math.Round(size, 1));
+            }
+        }
+    }
+
+    private void OpenCustomFontColor_Click(object sender, RoutedEventArgs e)
+    {
+        var currentColor = ViewModel.ActiveForegroundColor ?? "#000000";
+        var chosen = Tabulo.Views.ColorPickerDialog.PickColor(this, currentColor);
+        if (!string.IsNullOrEmpty(chosen))
+        {
+            ViewModel.SetForegroundColor(chosen);
+        }
+    }
+
+    private void OpenCustomFillColor_Click(object sender, RoutedEventArgs e)
+    {
+        var currentColor = ViewModel.ActiveBackgroundColor ?? "#FFFFFF";
+        var chosen = Tabulo.Views.ColorPickerDialog.PickColor(this, currentColor);
+        if (!string.IsNullOrEmpty(chosen))
+        {
+            ViewModel.SetBackgroundColor(chosen);
+        }
+    }
+
+    private void OpenCustomTableHeaderColor_Click(object sender, RoutedEventArgs e)
+    {
+        var currentColor = ViewModel.ActiveTable?.HeaderColor ?? "#334155";
+        var chosen = Tabulo.Views.ColorPickerDialog.PickColor(this, currentColor);
+        if (!string.IsNullOrEmpty(chosen))
+        {
+            ViewModel.SetActiveTableHeaderColor(chosen);
         }
     }
 }

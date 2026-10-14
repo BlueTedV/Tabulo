@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Tabulo.Core.Models;
 
@@ -32,11 +32,18 @@ public class CellDto
 
 public class CellStyleDto
 {
+    public string? FontFamily { get; set; }
+    public double? FontSize { get; set; }
     public bool IsBold { get; set; }
     public bool IsItalic { get; set; }
+    public bool IsUnderline { get; set; }
+    public bool IsStrikethrough { get; set; }
+    public string? Alignment { get; set; }
+    public string? VerticalAlignment { get; set; }
     public string? ForegroundColor { get; set; }
     public string? BackgroundColor { get; set; }
     public string? NumberFormat { get; set; }
+    public bool WrapText { get; set; }
 }
 
 public static class DocumentStorageManager
@@ -71,11 +78,18 @@ public static class DocumentStorageManager
                         RawInput = kvp.Value.RawInput,
                         Style = kvp.Value.Style == CellStyle.Default ? null : new CellStyleDto
                         {
+                            FontFamily = kvp.Value.Style.FontFamily,
+                            FontSize = kvp.Value.Style.FontSize,
                             IsBold = kvp.Value.Style.IsBold,
                             IsItalic = kvp.Value.Style.IsItalic,
+                            IsUnderline = kvp.Value.Style.IsUnderline,
+                            IsStrikethrough = kvp.Value.Style.IsStrikethrough,
+                            Alignment = kvp.Value.Style.Alignment.ToString(),
+                            VerticalAlignment = kvp.Value.Style.VerticalAlignment.ToString(),
                             ForegroundColor = kvp.Value.Style.ForegroundColor,
                             BackgroundColor = kvp.Value.Style.BackgroundColor,
-                            NumberFormat = kvp.Value.Style.NumberFormat
+                            NumberFormat = kvp.Value.Style.NumberFormat,
+                            WrapText = kvp.Value.Style.WrapText
                         }
                     })
             }).ToList()
@@ -113,13 +127,23 @@ public static class DocumentStorageManager
 
                 if (cellDto.Style != null)
                 {
+                    Enum.TryParse<CellHorizontalAlignment>(cellDto.Style.Alignment, true, out var hAlign);
+                    Enum.TryParse<CellVerticalAlignment>(cellDto.Style.VerticalAlignment, true, out var vAlign);
+
                     cell.Style = new CellStyle
                     {
+                        FontFamily = cellDto.Style.FontFamily ?? "Segoe UI",
+                        FontSize = cellDto.Style.FontSize ?? 11.5,
                         IsBold = cellDto.Style.IsBold,
                         IsItalic = cellDto.Style.IsItalic,
+                        IsUnderline = cellDto.Style.IsUnderline,
+                        IsStrikethrough = cellDto.Style.IsStrikethrough,
+                        Alignment = hAlign,
+                        VerticalAlignment = vAlign,
                         ForegroundColor = cellDto.Style.ForegroundColor,
                         BackgroundColor = cellDto.Style.BackgroundColor,
-                        NumberFormat = cellDto.Style.NumberFormat
+                        NumberFormat = cellDto.Style.NumberFormat,
+                        WrapText = cellDto.Style.WrapText
                     };
                 }
             }

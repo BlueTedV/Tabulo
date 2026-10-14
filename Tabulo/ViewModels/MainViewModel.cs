@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Tabulo.Core.Commands;
@@ -8,6 +8,7 @@ using Tabulo.Core.Storage;
 using Tabulo.Scripting;
 using System.IO;
 using System.Text;
+using System.Globalization;
 using System.Windows;
 
 namespace Tabulo.ViewModels;
@@ -79,6 +80,52 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _interactiveRefCaret = -1;
+
+    [ObservableProperty]
+    private string _activeFontFamily = "Segoe UI";
+
+    [ObservableProperty]
+    private double _activeFontSize = 11.5;
+
+    [ObservableProperty]
+    private string _activeFontSizeText = "11.5";
+
+    [ObservableProperty]
+    private bool _activeIsBold;
+
+    [ObservableProperty]
+    private bool _activeIsItalic;
+
+    [ObservableProperty]
+    private bool _activeIsUnderline;
+
+    [ObservableProperty]
+    private bool _activeIsStrikethrough;
+
+    [ObservableProperty]
+    private CellHorizontalAlignment _activeHorizontalAlignment = CellHorizontalAlignment.Left;
+
+    [ObservableProperty]
+    private CellVerticalAlignment _activeVerticalAlignment = CellVerticalAlignment.Center;
+
+    [ObservableProperty]
+    private string? _activeForegroundColor;
+
+    [ObservableProperty]
+    private string? _activeBackgroundColor;
+
+    [ObservableProperty]
+    private bool _activeWrapText;
+
+    public static IReadOnlyList<string> AvailableFontFamilies { get; } = new[]
+    {
+        "Segoe UI", "Aptos", "Calibri", "Arial", "Cascadia Code", "Consolas", "Georgia", "Times New Roman", "Verdana"
+    };
+
+    public static IReadOnlyList<double> AvailableFontSizes { get; } = new double[]
+    {
+        8, 9, 10, 11, 11.5, 12, 14, 16, 18, 20, 24, 28, 36
+    };
 
     public CalculationEngine CalcEngine { get; }
     public UndoRedoManager UndoRedo { get; }
@@ -170,6 +217,20 @@ public partial class MainViewModel : ObservableObject
 
         var cell = ActiveTable.GetCell(ActiveCellCoord);
         FormulaBarText = cell?.RawInput ?? string.Empty;
+
+        var style = cell?.Style ?? CellStyle.Default;
+        ActiveFontFamily = style.FontFamily ?? "Segoe UI";
+        ActiveFontSize = style.FontSize > 0 ? style.FontSize : 11.5;
+        ActiveFontSizeText = ActiveFontSize.ToString("0.#");
+        ActiveIsBold = style.IsBold;
+        ActiveIsItalic = style.IsItalic;
+        ActiveIsUnderline = style.IsUnderline;
+        ActiveIsStrikethrough = style.IsStrikethrough;
+        ActiveHorizontalAlignment = style.Alignment;
+        ActiveVerticalAlignment = style.VerticalAlignment;
+        ActiveForegroundColor = style.ForegroundColor;
+        ActiveBackgroundColor = style.BackgroundColor;
+        ActiveWrapText = style.WrapText;
     }
 
     public void UpdateSelectionSummary()
@@ -747,6 +808,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new BatchFormatCommand(ActiveTable, edits, $"Toggle bold in {ActiveTable.Name}");
         UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
         RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
     }
 
@@ -778,7 +840,130 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new BatchFormatCommand(ActiveTable, edits, $"Toggle italic in {ActiveTable.Name}");
         UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
         RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void ToggleUnderline()
+    {
+        if (ActiveTable == null) return;
+        var range = SelectedRange;
+        var anyNotUnderline = false;
+        foreach (var coord in range.Coordinates)
+        {
+            var cell = ActiveTable.GetCell(coord);
+            if (cell == null || !cell.Style.IsUnderline)
+            {
+                anyNotUnderline = true;
+                break;
+            }
+        }
+        var targetUnderline = anyNotUnderline;
+
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in range.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { IsUnderline = targetUnderline };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Toggle underline in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void ToggleStrikethrough()
+    {
+        if (ActiveTable == null) return;
+        var range = SelectedRange;
+        var anyNotStrike = false;
+        foreach (var coord in range.Coordinates)
+        {
+            var cell = ActiveTable.GetCell(coord);
+            if (cell == null || !cell.Style.IsStrikethrough)
+            {
+                anyNotStrike = true;
+                break;
+            }
+        }
+        var targetStrike = anyNotStrike;
+
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in range.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { IsStrikethrough = targetStrike };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Toggle strikethrough in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void SetFontFamily(string? family)
+    {
+        if (ActiveTable == null || string.IsNullOrWhiteSpace(family)) return;
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { FontFamily = family };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set font family to {family} in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+        StatusMessage = $"Font set to {family}";
+    }
+
+    [RelayCommand]
+    public void SetFontSize(double size)
+    {
+        if (ActiveTable == null || size <= 0) return;
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { FontSize = size };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set font size to {size} in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+        StatusMessage = $"Font size set to {size}";
+    }
+
+    [RelayCommand]
+    public void IncreaseFontSize()
+    {
+        var current = ActiveFontSize;
+        var next = AvailableFontSizes.FirstOrDefault(s => s > current);
+        if (next == 0) next = Math.Min(72, current + 2);
+        SetFontSize(next);
+    }
+
+    [RelayCommand]
+    public void DecreaseFontSize()
+    {
+        var current = ActiveFontSize;
+        var prev = AvailableFontSizes.LastOrDefault(s => s < current);
+        if (prev == 0) prev = Math.Max(6, current - 2);
+        SetFontSize(prev);
     }
 
     [RelayCommand]
@@ -803,7 +988,132 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set alignment to {alignment} in {ActiveTable.Name}");
         UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
         RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void SetVerticalAlignment(string? vAlign)
+    {
+        if (ActiveTable == null) return;
+        var vertical = vAlign?.ToLowerInvariant() switch
+        {
+            "top" => CellVerticalAlignment.Top,
+            "bottom" => CellVerticalAlignment.Bottom,
+            _ => CellVerticalAlignment.Center
+        };
+
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { VerticalAlignment = vertical };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set vertical alignment to {vertical} in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void SetForegroundColor(string? colorHex)
+    {
+        if (ActiveTable == null) return;
+        var color = string.IsNullOrWhiteSpace(colorHex) || colorHex == "Default" ? null : colorHex;
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { ForegroundColor = color };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set text color in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+        StatusMessage = color == null ? "Reset text color" : $"Text color set to {color}";
+    }
+
+    [RelayCommand]
+    public void SetBackgroundColor(string? colorHex)
+    {
+        if (ActiveTable == null) return;
+        var color = string.IsNullOrWhiteSpace(colorHex) || colorHex == "Default" || colorHex == "Transparent" ? null : colorHex;
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { BackgroundColor = color };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set cell fill color in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+        StatusMessage = color == null ? "Cleared fill color" : $"Fill color set to {color}";
+    }
+
+    [RelayCommand]
+    public void ToggleWrapText()
+    {
+        if (ActiveTable == null) return;
+        var anyNotWrap = false;
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetCell(coord);
+            if (cell == null || !cell.Style.WrapText)
+            {
+                anyNotWrap = true;
+                break;
+            }
+        }
+        var targetWrap = anyNotWrap;
+
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetOrCreateCell(coord);
+            var oldStyle = cell.Style;
+            var newStyle = oldStyle with { WrapText = targetWrap };
+            edits.Add(new CellStyleEdit(coord, oldStyle, newStyle));
+        }
+
+        var cmd = new BatchFormatCommand(ActiveTable, edits, $"Toggle text wrapping in {ActiveTable.Name}");
+        UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
+        RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+        StatusMessage = targetWrap ? "Text wrapping enabled" : "Text wrapping disabled";
+    }
+
+    [RelayCommand]
+    public void ClearFormatting()
+    {
+        if (ActiveTable == null) return;
+        var edits = new List<CellStyleEdit>();
+        foreach (var coord in SelectedRange.Coordinates)
+        {
+            var cell = ActiveTable.GetCell(coord);
+            if (cell != null && cell.Style != CellStyle.Default)
+            {
+                edits.Add(new CellStyleEdit(coord, cell.Style, CellStyle.Default));
+            }
+        }
+
+        if (edits.Count > 0)
+        {
+            var cmd = new BatchFormatCommand(ActiveTable, edits, $"Clear formatting in {ActiveTable.Name}");
+            UndoRedo.Execute(cmd);
+            UpdateActiveCellDisplay();
+            RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+            StatusMessage = $"Cleared formatting in {SelectedRange}";
+        }
     }
 
     [RelayCommand]
@@ -821,7 +1131,56 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new BatchFormatCommand(ActiveTable, edits, $"Set number format to {format ?? "General"} in {ActiveTable.Name}");
         UndoRedo.Execute(cmd);
+        UpdateActiveCellDisplay();
         RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
         StatusMessage = $"Applied {format ?? "General"} format to {SelectedRange}";
+    }
+
+    [RelayCommand]
+    public void ChangeSelectedCellsCase(string caseType)
+    {
+        if (ActiveTable == null) return;
+        var range = SelectedRange;
+        var edits = new List<CellInputEdit>();
+
+        foreach (var coord in range.Coordinates)
+        {
+            var cell = ActiveTable.GetCell(coord);
+            if (cell == null || string.IsNullOrEmpty(cell.RawInput) || cell.RawInput.StartsWith('='))
+            {
+                continue;
+            }
+
+            string original = cell.RawInput;
+            string transformed;
+            switch (caseType?.ToLowerInvariant())
+            {
+                case "upper":
+                    transformed = original.ToUpperInvariant();
+                    break;
+                case "lower":
+                    transformed = original.ToLowerInvariant();
+                    break;
+                case "capitalize":
+                case "title":
+                default:
+                    transformed = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(original.ToLower());
+                    break;
+            }
+
+            if (original != transformed)
+            {
+                edits.Add(new CellInputEdit(coord, original, transformed));
+            }
+        }
+
+        if (edits.Count > 0)
+        {
+            var cmd = new BatchCellEditCommand(Document, CalcEngine, ActiveTable.Name, edits, $"Change case ({caseType}) in {ActiveTable.Name}");
+            UndoRedo.Execute(cmd);
+            UpdateActiveCellDisplay();
+            RequestCanvasRepaint?.Invoke(this, EventArgs.Empty);
+            StatusMessage = $"Changed case ({caseType}) for {edits.Count} cells";
+        }
     }
 }

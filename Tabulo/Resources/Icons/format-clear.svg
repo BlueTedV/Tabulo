@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Diagonal strikethrough line -->
+  <path d="M4 4l16 16"/>
+  <!-- Top bar of T -->
+  <path d="M6 7h12"/>
+  <!-- Vertical stem of T -->
+  <path d="M12 7v5"/>
+  <path d="M12 16v3"/>
+  <path d="M9 19h6"/>
+</svg>

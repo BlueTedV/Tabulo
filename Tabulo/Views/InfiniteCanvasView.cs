@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -473,22 +473,58 @@ public class InfiniteCanvasView : FrameworkElement
                     var displayStr = cell.Value.Format(cell.Style.NumberFormat);
                     var isErr = cell.Value.IsError;
 
-                    var brush = isErr ? Brushes.Crimson : Brushes.Black;
+                    // Foreground Brush
+                    Brush textBrush = isErr ? Brushes.Crimson : Brushes.Black;
+                    if (!isErr && !string.IsNullOrEmpty(cell.Style.ForegroundColor))
+                    {
+                        try { textBrush = new BrushConverter().ConvertFromString(cell.Style.ForegroundColor) as Brush ?? (isErr ? Brushes.Crimson : Brushes.Black); }
+                        catch { }
+                    }
+
                     var fontWeight = (cell.Style.IsBold || isErr) ? FontWeights.SemiBold : FontWeights.Normal;
                     var fontStyle = cell.Style.IsItalic ? FontStyles.Italic : FontStyles.Normal;
+                    var fontFamily = !string.IsNullOrWhiteSpace(cell.Style.FontFamily)
+                        ? new FontFamily(cell.Style.FontFamily)
+                        : DefaultTypeface.FontFamily;
+                    var fontSize = cell.Style.FontSize > 0 ? cell.Style.FontSize : 11.5;
+
+                    var textToFormat = cell.Style.WrapText ? PrepareWrapText(displayStr) : displayStr;
 
                     var cellFormatted = new FormattedText(
-                        displayStr,
+                        textToFormat,
                         CultureInfo.InvariantCulture,
                         FlowDirection.LeftToRight,
-                        new Typeface(DefaultTypeface.FontFamily, fontStyle, fontWeight, FontStretches.Normal),
-                        11.5,
-                        brush,
-                        VisualTreeHelper.GetDpi(this).PixelsPerDip)
+                        new Typeface(fontFamily, fontStyle, fontWeight, FontStretches.Normal),
+                        fontSize,
+                        textBrush,
+                        VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+                    // Text Decorations: Underline & Strikethrough
+                    if (cell.Style.IsUnderline && cell.Style.IsStrikethrough)
                     {
-                        MaxTextWidth = Math.Max(1, colW - 8),
-                        MaxTextHeight = Math.Max(1, rowH - 4)
-                    };
+                        var decors = new TextDecorationCollection(TextDecorations.Underline);
+                        foreach (var d in TextDecorations.Strikethrough) decors.Add(d);
+                        cellFormatted.SetTextDecorations(decors);
+                    }
+                    else if (cell.Style.IsUnderline)
+                    {
+                        cellFormatted.SetTextDecorations(TextDecorations.Underline);
+                    }
+                    else if (cell.Style.IsStrikethrough)
+                    {
+                        cellFormatted.SetTextDecorations(TextDecorations.Strikethrough);
+                    }
+
+                    if (cell.Style.WrapText)
+                    {
+                        cellFormatted.MaxTextWidth = Math.Max(1, colW - 8);
+                    }
+                    else
+                    {
+                        cellFormatted.MaxTextWidth = Math.Max(1, colW - 8);
+                        cellFormatted.MaxTextHeight = Math.Max(1, rowH - 4);
+                        cellFormatted.Trimming = TextTrimming.CharacterEllipsis;
+                    }
 
                     double alignX = cellX + 4;
                     if (cell.Style.Alignment == CellHorizontalAlignment.Right || (cell.Style.Alignment == CellHorizontalAlignment.Left && cell.Value.IsNumber))
@@ -500,7 +536,32 @@ public class InfiniteCanvasView : FrameworkElement
                         alignX = cellX + (colW - cellFormatted.Width) / 2;
                     }
 
-                    dc.DrawText(cellFormatted, new Point(alignX, currentY + (rowH - cellFormatted.Height) / 2));
+                    double alignY;
+                    if (cell.Style.WrapText && cellFormatted.Height > rowH - 4)
+                    {
+                        alignY = currentY + 3;
+                    }
+                    else
+                    {
+                        switch (cell.Style.VerticalAlignment)
+                        {
+                            case CellVerticalAlignment.Top:
+                                alignY = currentY + 3;
+                                break;
+                            case CellVerticalAlignment.Bottom:
+                                alignY = currentY + rowH - cellFormatted.Height - 3;
+                                break;
+                            case CellVerticalAlignment.Center:
+                            default:
+                                alignY = currentY + (rowH - cellFormatted.Height) / 2;
+                                break;
+                        }
+                    }
+
+                    var clipRect = new Rect(cellX + 1, currentY + 1, Math.Max(0, colW - 2), Math.Max(0, rowH - 2));
+                    dc.PushClip(new RectangleGeometry(clipRect));
+                    dc.DrawText(cellFormatted, new Point(alignX, alignY));
+                    dc.Pop();
                 }
 
                 // Selection cell wash
@@ -883,7 +944,7 @@ public class InfiniteCanvasView : FrameworkElement
             }
 
             // Hit test tables in reverse order (topmost first)
-            for (var i = _vm.Document!.Tables.Count - 1; i >= 0; i--)
+            for (var i = _vm!.Document!.Tables.Count - 1; i >= 0; i--)
             {
                 var table = _vm.Document.Tables[i];
                 var totalW = table.GetTotalWidth();
@@ -1823,12 +1884,19 @@ public class InfiniteCanvasView : FrameworkElement
             if (cell != null && !cell.Value.IsEmpty)
             {
                 var text = cell.Value.Format(cell.Style.NumberFormat);
+                var fontWeight = cell.Style.IsBold ? FontWeights.SemiBold : FontWeights.Normal;
+                var fontStyle = cell.Style.IsItalic ? FontStyles.Italic : FontStyles.Normal;
+                var fontFamily = !string.IsNullOrWhiteSpace(cell.Style.FontFamily)
+                    ? new FontFamily(cell.Style.FontFamily)
+                    : DefaultTypeface.FontFamily;
+                var fontSize = cell.Style.FontSize > 0 ? cell.Style.FontSize : 11.5;
+
                 var formatted = new FormattedText(
                     text,
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
-                    DefaultTypeface,
-                    11.5,
+                    new Typeface(fontFamily, fontStyle, fontWeight, FontStretches.Normal),
+                    fontSize,
                     Brushes.Black,
                     VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
@@ -1880,6 +1948,24 @@ public class InfiniteCanvasView : FrameworkElement
         if (relY < 0) row = 0;
 
         return new CellCoordinate(Math.Clamp(row, 0, table.RowCount - 1), Math.Clamp(col, 0, table.ColumnCount - 1));
+    }
+
+    private static string PrepareWrapText(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= 1) return text;
+        var sb = new System.Text.StringBuilder(text.Length * 2);
+        for (int i = 0; i < text.Length; i++)
+        {
+            sb.Append(text[i]);
+            if (i < text.Length - 1 &&
+                !char.IsWhiteSpace(text[i]) &&
+                !char.IsWhiteSpace(text[i + 1]) &&
+                text[i] != '\u200B' && text[i + 1] != '\u200B')
+            {
+                sb.Append('\u200B');
+            }
+        }
+        return sb.ToString();
     }
 
     #endregion

@@ -1,4 +1,4 @@
-﻿namespace Tabulo.Core.Models;
+namespace Tabulo.Core.Models;
 
 public enum CellHorizontalAlignment
 {
@@ -7,18 +7,29 @@ public enum CellHorizontalAlignment
     Right
 }
 
+public enum CellVerticalAlignment
+{
+    Top,
+    Center,
+    Bottom
+}
+
 public record CellStyle
 {
     public static readonly CellStyle Default = new();
 
     public string? FontFamily { get; init; } = "Segoe UI";
-    public double FontSize { get; init; } = 12.0;
+    public double FontSize { get; init; } = 11.5;
     public bool IsBold { get; init; }
     public bool IsItalic { get; init; }
+    public bool IsUnderline { get; init; }
+    public bool IsStrikethrough { get; init; }
     public CellHorizontalAlignment Alignment { get; init; } = CellHorizontalAlignment.Left;
+    public CellVerticalAlignment VerticalAlignment { get; init; } = CellVerticalAlignment.Center;
     public string? ForegroundColor { get; init; } = "#1E293B"; // Dark slate
     public string? BackgroundColor { get; init; } = null;       // Transparent
     public string? NumberFormat { get; init; } = null;         // "General", "C2", "P1", "N2"
+    public bool WrapText { get; init; } = false;
 }
 
 public static class CellNumberFormats
